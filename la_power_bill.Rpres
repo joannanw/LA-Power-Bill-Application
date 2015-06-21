@@ -1,0 +1,74 @@
+LA Power Bill Application Pitch
+========================================================
+author: Joanna Widjaja
+date: 6/21/2015
+
+Have you ever wondered how much you spend on electricity every month of the year? 
+Then this application is for you!
+
+Data Sources
+========================================================
+The L.A. Power Bill Application takes in historical power usage data from 2005 - 2013. 
+Users can select the city, and adjust the rate in cents per kWh as needed. 
+
+There are 2 data sources for the application. 
+
+- Power Consumption Data: taken from the data.lacity.org
+- Zipcode and City Data: taken from zipinfo.com 
+
+In addition, I also used a paper by Department of Water and Power, City of Los Angeles to get the default power rate of 0.117 cents per kWh power consumed. 
+
+The Application
+========================================================
+Below is sample of the Los Angeles power consumption data after final processing.
+```{r, echo = FALSE}
+library(dplyr)
+library(data.table)
+library(tidyr)
+# Read power data
+data <- fread("./data/Water_and_Electric_Usage_from_2005_-_2013.csv")
+data$`Zip Code` <- substr(data$`Zip Code`,1,5)
+# Take only power data
+data <- data[,-4, with = FALSE]
+# Process Year and Month
+data$`Text Date` <- substr(data$`Text Date`,5,8)
+data$`Value Date` <- substr(data$`Value Date`,1,3)
+# Rename column
+setnames(data, old = names(data), new = c("Year", "Month", "Zipcode", "Power Use"))
+
+# Read zipcode and city data
+zipcode <- fread("./data/free-zipcode-database-Primary.csv")
+# Take only zipcode, city, and state
+zipcode <- zipcode[,.(Zipcode, City, State)]
+# Match zipcode to city 
+finData <- merge(x = data, y = zipcode, by = "Zipcode")
+# Set Month to 1 - 12
+finData$Month <- sapply(finData$Month, switch, Jan = 1, Feb = 2, Mar = 3, Apr = 4, May = 5, Jun = 6, Jul = 7, Aug = 8, Sep = 9, Oct = 10, Nov = 11, Dec = 12)
+result <- (finData %>% filter(City == "LOS ANGELES") %>% gather(variable, value, -Zipcode, -Year, -Month, -State, -City)
+            %>% group_by(City, Month) %>% summarise(`Avg Power Use` = mean(value, na.rm = TRUE))
+            %>% mutate(Bill = `Avg Power Use` * 0.117) %>% arrange(Month))
+result
+```
+
+Power Usage Trend
+========================================================
+Below is a plot of the power usage trend of the City of Los Angeles.
+
+```{r, echo=FALSE}
+library(ggplot2)
+ggplot(result, aes(Month, `Avg Power Use`)) + geom_bar(stat = "identity") + scale_x_discrete(limits=c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) 
+```
+
+Benefits of Using The Application
+========================================================
+The application aggregates historical power consumption data in the Los Angeles area. Users will be able to predict their power usage trends based on their geographical preference with this application. 
+
+Moreover, it also allows users to adjust the electricity rate. The application shows both monthly bills, and total annual bill.
+
+The application is simple to use and gives straightforward breakdown of estimated power bill.
+
+Please access it via this link: https://joannanw.shinyapps.io/POWERBILLAPP
+
+Thank you!
+
+
